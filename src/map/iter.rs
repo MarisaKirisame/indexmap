@@ -4,6 +4,7 @@ use alloc::vec::{self, Vec};
 use core::fmt;
 use core::iter::FusedIterator;
 use core::slice;
+use crate::map::IndexMapCore;
 
 impl<'a, K, V, S> IntoIterator for &'a IndexMap<K, V, S> {
     type Item = (&'a K, &'a V);
@@ -539,3 +540,57 @@ impl<K, V> Default for IntoValues<K, V> {
         }
     }
 }
+
+#[must_use = "Iterators are lazy unless consumed"]
+pub struct ExtractIf<'a, K, V, F>
+where
+    F: FnMut(&K, &mut V) -> bool,
+{
+    f: F,
+    idx: usize,
+    table: &'a mut IndexMapCore<K, V>,
+}
+
+impl<'a, K, V, F> ExtractIf<'a, K, V, F>
+where
+    F: FnMut(&K, &mut V) -> bool,
+{
+    pub(super) fn new(f: F, idx: usize, table: &'a mut IndexMapCore<K, V>) -> ExtractIf<'a, K, V, F> {
+        ExtractIf {
+            f:f,
+            idx: idx,
+            table: table
+        }
+    }
+}
+
+impl<K, V, F> Iterator for ExtractIf<'_, K, V, F>
+where
+    F: FnMut(&K, &mut V) -> bool,
+{
+    type Item = (K, V);
+
+    #[cfg_attr(feature = "inline-more", inline)]
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.idx < self.table.entries.len() {
+            let b = &mut self.table.entries[self.idx];
+            if (self.f)(&b.key, &mut b.value) {
+                // this assert swap_remove_index return Some.
+                return Some(self.table.swap_remove_index(self.idx).unwrap());
+            } else {
+                self.idx += 1;
+            }
+        }
+        assert!(self.idx == self.table.entries.len());
+        return None;
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let entry_len = self.table.entries.len();
+        assert!(entry_len >= self.idx);
+        (0, Some(entry_len - self.idx))
+    }
+}
+
+impl<K, V, F> FusedIterator for ExtractIf<'_, K, V, F> where F: FnMut(&K, &mut V) -> bool {}

@@ -14,7 +14,7 @@ mod tests;
 
 pub use self::core::{Entry, OccupiedEntry, VacantEntry};
 pub use self::iter::{
-    Drain, IntoIter, IntoKeys, IntoValues, Iter, IterMut, Keys, Values, ValuesMut,
+    Drain, IntoIter, IntoKeys, IntoValues, Iter, IterMut, Keys, Values, ValuesMut, ExtractIf
 };
 pub use self::slice::Slice;
 pub use crate::mutable_keys::MutableKeys;
@@ -296,6 +296,13 @@ impl<K, V, S> IndexMap<K, V, S> {
         R: RangeBounds<usize>,
     {
         Drain::new(self.core.drain(range))
+    }
+
+    pub fn extract_if<'a, F>(&'a mut self, f: F) -> ExtractIf<'a, K, V, F>
+    where
+        F: FnMut(&K, &mut V) -> bool,
+    {
+        ExtractIf::new(f, 0, &mut self.core)
     }
 
     /// Splits the collection into two at the given index.

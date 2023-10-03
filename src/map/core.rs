@@ -23,9 +23,9 @@ use crate::{Bucket, Entries, Equivalent, HashValue};
 /// Core of the map that does not depend on S
 pub(crate) struct IndexMapCore<K, V> {
     /// indices mapping from the entry hash to its index.
-    indices: RawTable<usize>,
+    pub(crate) indices: RawTable<usize>,
     /// entries is a dense vec of entries in their order.
-    entries: Vec<Bucket<K, V>>,
+    pub(crate) entries: Vec<Bucket<K, V>>,
 }
 
 #[inline(always)]
